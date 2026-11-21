@@ -1,0 +1,326 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="description" content="Change an invoice number to see what happens when ownership goes unchecked.">
+<meta name="theme-color" content="#f5f6fa">
+<title>IDOR · Ghurir</title>
+<style>
+:root{--bg:#f5f6fa;--surface:#fff;--ink:#161a26;--muted:#586075;--line:#dfe3ec;--accent:#3347d6;--accent-soft:#eceffd;--bad:#b3261e;--bad-bg:#fdeeec;--ok:#116b42;--ok-bg:#e7f5ed;--code:#12151f;--code-ink:#dde3f5;--hl:#4a2a2f;--hl-ok:#1f4130}
+*{box-sizing:border-box}
+html{scroll-behavior:smooth}
+body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.6 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
+a{color:var(--accent)}
+.wrap{max-width:1080px;margin:0 auto;padding:0 20px}
+.skip-link{position:absolute;left:-999px;top:8px;background:var(--ink);color:#fff;padding:8px 12px;border-radius:6px;z-index:10}
+.skip-link:focus{left:8px}
+:focus-visible{outline:3px solid var(--accent);outline-offset:2px}
+.site-header{background:var(--surface);border-bottom:1px solid var(--line)}
+.header-inner{display:flex;align-items:center;justify-content:space-between;gap:16px;min-height:60px}
+.brand{display:inline-flex;align-items:center;gap:10px;font-weight:700;color:var(--ink);text-decoration:none}
+.brand-mark{background:var(--ink);color:#fff;border-radius:7px;padding:2px 9px;font:700 14px ui-monospace,Menlo,Consolas,monospace}
+.site-nav a{color:var(--ink);text-decoration:none;font-weight:600;padding:6px 10px;border-radius:8px}
+.site-nav a[aria-current="page"]{background:var(--accent-soft);color:var(--accent)}
+.lab-page{padding-top:28px;padding-bottom:20px}
+.lab-intro h1{font-size:clamp(2rem,5vw,3rem);line-height:1.1;letter-spacing:-.02em;margin:0 0 20px}
+h2{font-size:1.45rem;margin:0 0 10px}
+h3{font-size:1.05rem;margin:0 0 6px}
+h4{font-size:1rem;margin:0 0 4px}
+p{margin:0 0 12px;max-width:70ch}
+.classification{list-style:none;display:flex;flex-wrap:wrap;gap:10px;padding:0;margin:14px 0 0}
+.classification a{display:inline-block;border:1px solid var(--line);background:var(--surface);border-radius:999px;padding:3px 14px;font-size:.9rem;text-decoration:none;font-weight:600}
+.classification a:hover{border-color:var(--accent)}
+section{margin-top:44px}
+.sandbox{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:22px}
+.sandbox-header{display:flex;flex-wrap:wrap;justify-content:space-between;gap:16px;margin-bottom:18px}
+.sandbox-header p{margin:0;color:var(--muted)}
+.mode-picker{display:inline-flex;border:1px solid var(--line);border-radius:10px;overflow:hidden;align-self:flex-start}
+.mode-picker button{font:inherit;font-weight:600;border:0;background:var(--surface);padding:8px 18px;cursor:pointer;color:var(--ink)}
+.mode-picker button+button{border-left:1px solid var(--line)}
+.mode-picker button[aria-pressed="true"][data-mode-button="vulnerable"]{background:var(--bad);color:#fff}
+.mode-picker button[aria-pressed="true"][data-mode-button="fixed"]{background:var(--ok);color:#fff}
+.sandbox-grid{display:grid;grid-template-columns:minmax(0,5fr) minmax(0,6fr);gap:20px}
+@media (max-width:820px){.sandbox-grid{grid-template-columns:1fr}}
+.actions-panel{display:flex;flex-direction:column;gap:10px}
+.payload-instruction{color:var(--muted);font-size:.94rem;margin:0}
+.normal-heading{margin-top:10px}
+.payload-button{text-align:left;font:inherit;background:var(--bg);border:1px solid var(--line);border-radius:10px;padding:12px 14px;cursor:pointer;color:var(--ink)}
+.payload-button:hover{border-color:var(--accent)}
+.payload-button[data-selected="true"]{border-color:var(--accent);background:var(--accent-soft);box-shadow:inset 3px 0 0 var(--accent)}
+.payload-name{display:block;font-weight:700;margin-bottom:4px}
+.payload-button code{display:block;white-space:pre-wrap;word-break:break-all;font:13px/1.5 ui-monospace,Menlo,Consolas,monospace;color:var(--muted)}
+.result-panel{border:1px solid var(--line);border-radius:12px;padding:16px;min-width:0}
+.result-heading{display:flex;justify-content:space-between;align-items:center;gap:10px;margin-bottom:10px}
+.result-heading h3{margin:0}
+.result-tools{display:inline-flex;align-items:center;gap:10px}
+.reset-button{font:inherit;font-size:.9rem;background:none;border:0;color:var(--accent);cursor:pointer;font-weight:600;text-decoration:underline}
+.badge{font:700 .82rem ui-monospace,Menlo,Consolas,monospace;padding:3px 10px;border-radius:999px;background:var(--bg);border:1px solid var(--line);color:var(--muted)}
+.badge[data-tone="danger"]{background:var(--bad-bg);border-color:var(--bad);color:var(--bad)}
+.badge[data-tone="safe"]{background:var(--ok-bg);border-color:var(--ok);color:var(--ok)}
+.result-summary{border-radius:10px;padding:12px 14px;background:var(--bg);margin-bottom:12px}
+.result-summary[data-tone="danger"]{background:var(--bad-bg)}
+.result-summary[data-tone="safe"]{background:var(--ok-bg)}
+.result-summary p{margin:0;font-size:.95rem}
+.request-panel h4{color:var(--muted);font-size:.85rem}
+pre{margin:6px 0 12px;background:var(--code);color:var(--code-ink);padding:12px 14px;border-radius:10px;overflow-x:auto;font:13px/1.6 ui-monospace,Menlo,Consolas,monospace}
+.result-data pre{margin-bottom:0}
+.code-grid{display:grid;grid-template-columns:1fr 1fr;gap:18px}
+@media (max-width:820px){.code-grid{grid-template-columns:1fr}}
+.code-card{margin:0;background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:18px;min-width:0}
+.code-card[data-code-kind="vulnerable"]{border-top:4px solid var(--bad)}
+.code-card[data-code-kind="fixed"]{border-top:4px solid var(--ok)}
+.code-card figcaption p{color:var(--muted);font-size:.94rem}
+.code-card pre{padding:12px 0}
+.line{display:block;padding:0 14px;white-space:pre}
+.line::before{content:attr(data-n);display:inline-block;width:1.8em;margin-right:12px;color:#6b7390;text-align:right}
+.line.hl-bad{background:var(--hl);box-shadow:inset 3px 0 0 #ff8a80}
+.line.hl-ok{background:var(--hl-ok);box-shadow:inset 3px 0 0 #6fd4a0}
+.case-study{background:var(--surface);border:1px solid var(--line);border-left:4px solid var(--accent);border-radius:12px;padding:16px 18px;margin-top:16px}
+.case-study p{margin:0}
+.sources{padding-left:20px;margin:0}
+.noscript-note{color:var(--bad)}
+.site-footer{margin-top:48px;border-top:1px solid var(--line);background:var(--surface)}
+.footer-inner{display:flex;flex-wrap:wrap;justify-content:space-between;gap:10px;padding-top:18px;padding-bottom:18px;color:var(--muted);font-size:.92rem}
+.footer-brand{font-weight:700;color:var(--ink);text-decoration:none}
+@media (prefers-reduced-motion:no-preference){.sandbox{scroll-margin-top:12px}}
+</style>
+</head>
+<body>
+  <a class="skip-link" href="#main">Skip to content</a>
+  <header class="site-header">
+    <div class="wrap header-inner">
+      <a class="brand" href="#">
+        <span class="brand-mark" aria-hidden="true">&gt;_</span>
+        <span>Ghurir</span>
+      </a>
+      <nav class="site-nav" aria-label="Main navigation">
+        <a href="#" aria-current="page">IDOR</a>
+      </nav>
+    </div>
+  </header>
+
+  <main id="main" class="wrap lab-page">
+    <header class="lab-intro">
+      <h1>Insecure Direct Object Reference</h1>
+      <h2>What it is</h2>
+      <p>IDOR is an access-control flaw where a record ID is accepted without checking who owns the record. OWASP Top 10:2025 A01, Broken Access Control, includes this risk; the related weakness is CWE-639, Authorization Bypass Through User-Controlled Key.</p>
+      <ul class="classification" aria-label="Vulnerability classification">
+        <li><a href="https://top10.owasp.org/2025/A01_2025-Broken_Access_Control/" target="_blank" rel="noopener">OWASP A01:2025 Broken Access Control</a></li>
+        <li><a href="https://cwe.mitre.org/data/definitions/639.html" target="_blank" rel="noopener">CWE-639</a></li>
+      </ul>
+    </header>
+
+    <section class="sandbox" id="sandbox" data-mode="vulnerable" aria-labelledby="try-title">
+      <div class="sandbox-header">
+        <div>
+          <h2 id="try-title">Try it</h2>
+          <p>You are viewer U-01 and own invoice #101. Compare reading another user’s invoice with changing its delivery note.</p>
+        </div>
+        <div class="mode-picker" role="group" aria-label="Simulation mode">
+          <button type="button" data-mode-button="vulnerable" aria-pressed="true">Vulnerable</button>
+          <button type="button" data-mode-button="fixed" aria-pressed="false">Fixed</button>
+        </div>
+      </div>
+      <div class="sandbox-grid">
+        <div class="actions-panel">
+          <h3>Attack payloads</h3>
+          <p class="payload-instruction">Read a private invoice or change its note. Choose Fixed and replay the same attack.</p>
+          <button type="button" class="payload-button" data-payload="102" data-selected="false" aria-pressed="false">
+            <span class="payload-name">Read invoice #102</span>
+            <code>GET /invoices/102</code>
+          </button>
+          <button type="button" class="payload-button" data-payload="update-102" data-selected="false" aria-pressed="false">
+            <span class="payload-name">Change invoice #102</span>
+            <code>PATCH /invoices/102
+{"deliveryNote":"Collect at reception"}</code>
+          </button>
+          <h3 class="normal-heading">Normal use</h3>
+          <button type="button" class="payload-button" data-normal="101" data-selected="false" aria-pressed="false">
+            <span class="payload-name">Open my invoice</span>
+            <code>GET /invoices/101</code>
+          </button>
+        </div>
+        <div class="result-panel" aria-busy="false">
+          <div class="result-heading">
+            <h3>Result</h3>
+            <span class="result-tools"><button type="button" class="reset-button" id="reset">Reset</button><span class="badge" id="status" data-tone="neutral">Ready</span></span>
+          </div>
+          <div class="result-summary" id="summary" role="status" aria-live="polite" aria-atomic="true">
+            <h4 id="rTitle">Run a payload</h4>
+            <p id="rDetail">The request and its outcome will appear here.</p>
+          </div>
+          <div class="request-panel" id="reqPanel" hidden>
+            <h4>Simulated request</h4>
+            <pre><code id="reqText"></code></pre>
+          </div>
+          <div class="result-data" id="data"></div>
+        </div>
+      </div>
+      <noscript><p class="noscript-note">Enable JavaScript to run the simulation.</p></noscript>
+    </section>
+
+    <section class="code-section" aria-labelledby="code-title">
+      <h2 id="code-title">Compare the code</h2>
+      <div class="code-grid">
+        <figure class="code-card" data-code-kind="vulnerable">
+          <figcaption>
+            <h3>Vulnerable code</h3>
+            <p>Highlighted line 8 returns any found invoice without checking its owner, so another user’s record is exposed.</p>
+          </figcaption>
+          <pre tabindex="0" aria-label="Vulnerable code example"><code id="codeV"></code></pre>
+        </figure>
+        <figure class="code-card" data-code-kind="fixed">
+          <figcaption>
+            <h3>Fixed code</h3>
+            <p>Highlighted line 7 checks ownership; a foreign invoice gets 403, while the viewer’s own invoice still returns.</p>
+          </figcaption>
+          <pre tabindex="0" aria-label="Fixed code example"><code id="codeF"></code></pre>
+        </figure>
+      </div>
+    </section>
+
+    <section class="impact-section" aria-labelledby="impact-title">
+      <h2 id="impact-title">Why it matters</h2>
+      <p>An attacker could read private orders or change delivery details by supplying another record’s ID.</p>
+      <section class="case-study" id="real-world-case" aria-labelledby="case-title" style="margin-top:16px">
+        <h3 id="case-title">Real-world case · First American (2019)</h3>
+        <p>First American’s document-sharing app let users change the document ID in a link and open other customers’ documents. The U.S. SEC documented the flaw in its 2021 order. Changing an invoice number in this lab models the same missing access check.</p>
+      </section>
+    </section>
+
+    <section class="sources-section" aria-labelledby="sources-title">
+      <h2 id="sources-title">Sources</h2>
+      <ul class="sources">
+        <li><a href="https://community.owasp.org/attacks/insecure_direct_object_reference" target="_blank" rel="noopener">OWASP · IDOR</a></li>
+        <li><a href="https://www.sec.gov/files/litigation/admin/2021/34-92176.pdf" target="_blank" rel="noopener">U.S. SEC · First American order (PDF)</a></li>
+      </ul>
+    </section>
+  </main>
+
+  <footer class="site-footer">
+    <div class="wrap footer-inner">
+      <a class="footer-brand" href="#">Ghurir</a>
+      <span>Browser simulations with sample data.</span>
+    </div>
+  </footer>
+
+<script>
+/* The code shown on the page is the source of these same functions. */
+function vulnerableHandler(store, viewer, req) {
+const invoice = store.invoices[req.id];
+if (!invoice) {
+return { status: 404, body: { error: "Not found" } };
+}
+if (req.method === "PATCH") invoice.deliveryNote = req.body.deliveryNote;
+return { status: 200, body: invoice };
+}
+
+function fixedHandler(store, viewer, req) {
+const invoice = store.invoices[req.id];
+if (!invoice) {
+return { status: 404, body: { error: "Not found" } };
+}
+const owned = invoice.ownerId === viewer.id;
+if (!owned) return { status: 403, body: { error: "Forbidden" } };
+if (req.method === "PATCH") invoice.deliveryNote = req.body.deliveryNote;
+return { status: 200, body: invoice };
+}
+
+const VIEWER = { id: "U-01" };
+const freshStore = () => ({ invoices: {
+  101: { id: 101, ownerId: "U-01", item: "Desk lamp", total: 48, deliveryNote: "Ring the bell" },
+  102: { id: 102, ownerId: "U-02", item: "Headphones", total: 219, deliveryNote: "Leave at the front desk" }
+}});
+const REQUESTS = {
+  "102": { method: "GET", id: 102 },
+  "update-102": { method: "PATCH", id: 102, body: { deliveryNote: "Collect at reception" } },
+  "101": { method: "GET", id: 101 }
+};
+
+const $ = (id) => document.getElementById(id);
+const sandbox = $("sandbox");
+let mode = "vulnerable", current = null;
+
+function renderCode(el, fn, hl, cls) {
+  const lines = fn.toString().split("\n");
+  el.innerHTML = "";
+  lines.forEach((text, i) => {
+    const s = document.createElement("span");
+    s.className = "line" + (i + 1 === hl ? " " + cls : "");
+    s.dataset.n = i + 1;
+    s.textContent = text || " ";
+    el.appendChild(s);
+  });
+}
+renderCode($("codeV"), vulnerableHandler, 8, "hl-bad");
+renderCode($("codeF"), fixedHandler, 7, "hl-ok");
+
+function setOutcome(title, detail, tone, badge) {
+  $("rTitle").textContent = title;
+  $("rDetail").textContent = detail;
+  $("summary").dataset.tone = tone;
+  $("status").textContent = badge;
+  $("status").dataset.tone = tone;
+}
+
+function run(key) {
+  current = key;
+  const req = REQUESTS[key];
+  const store = freshStore();
+  const handler = mode === "fixed" ? fixedHandler : vulnerableHandler;
+  const res = handler(store, VIEWER, req);
+  const foreign = store.invoices[req.id] && store.invoices[req.id].ownerId !== VIEWER.id;
+
+  document.querySelectorAll(".payload-button").forEach((b) => {
+    const sel = (b.dataset.payload || b.dataset.normal) === key;
+    b.dataset.selected = sel;
+    b.setAttribute("aria-pressed", sel);
+  });
+
+  let reqText = req.method + " /invoices/" + req.id;
+  if (req.body) reqText += "\n" + JSON.stringify(req.body);
+  $("reqText").textContent = reqText;
+  $("reqPanel").hidden = false;
+
+  if (res.status === 200 && foreign && req.method === "PATCH") {
+    setOutcome("Another user’s invoice was changed", "The server accepted the ID and never checked the owner. Invoice #102 now has a different delivery note.", "danger", "200 OK");
+  } else if (res.status === 200 && foreign) {
+    setOutcome("Another user’s invoice was returned", "Viewer U-01 read invoice #102, which belongs to U-02.", "danger", "200 OK");
+  } else if (res.status === 403) {
+    setOutcome("Access blocked", "The ownership check rejected the request. Invoice #102 is unchanged.", "safe", "403 Forbidden");
+  } else {
+    setOutcome("Your invoice was returned", "Viewer U-01 owns invoice #101, so this request is allowed in both modes.", "safe", "200 OK");
+  }
+
+  const pre = document.createElement("pre");
+  const code = document.createElement("code");
+  code.textContent = JSON.stringify(res.body, null, 2);
+  pre.appendChild(code);
+  $("data").replaceChildren(pre);
+}
+
+function reset() {
+  current = null;
+  document.querySelectorAll(".payload-button").forEach((b) => { b.dataset.selected = "false"; b.setAttribute("aria-pressed", "false"); });
+  setOutcome("Run a payload", "The request and its outcome will appear here.", "neutral", "Ready");
+  $("summary").dataset.tone = "neutral";
+  $("reqPanel").hidden = true;
+  $("data").replaceChildren();
+}
+
+document.querySelectorAll(".payload-button").forEach((b) => {
+  b.addEventListener("click", () => run(b.dataset.payload || b.dataset.normal));
+});
+document.querySelectorAll("[data-mode-button]").forEach((b) => {
+  b.addEventListener("click", () => {
+    mode = b.dataset.modeButton;
+    sandbox.dataset.mode = mode;
+    document.querySelectorAll("[data-mode-button]").forEach((x) => x.setAttribute("aria-pressed", x === b));
+    if (current) run(current);
+  });
+});
+$("reset").addEventListener("click", reset);
+</script>
+</body>
+</html>
